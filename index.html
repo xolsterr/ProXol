@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<title>Английская пирамида</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1a1d21;--mut:#6b7280;--bd:#e3e6ea;--ac:#2557d6;--up:#d9f3df;--po:#fff2cc;--dn:#fbdcdc;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161a;--card:#1d2026;--tx:#e8eaed;--mut:#9aa1ab;--bd:#2c3038;--ac:#7aa2ff;--up:#1d3a28;--po:#41381a;--dn:#442222;color-scheme:dark}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:900px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:0 0 4px}.sub{color:var(--mut);margin:0 0 14px;font-size:13px}
+.bar,.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+button{font:inherit;border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:7px 12px;border-radius:8px;cursor:pointer}
+button.on,button.pri{background:var(--ac);color:#fff;border-color:var(--ac)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:12px}
+.sc{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:5px 7px;text-align:right;border-bottom:1px solid var(--bd);white-space:nowrap}
+th:nth-child(2),td:nth-child(2){text-align:left;width:100%}
+tr.cl{cursor:pointer}tr.cl:hover{background:var(--bg)}
+tr.up td{background:var(--up)}tr.po td{background:var(--po)}tr.dn td{background:var(--dn)}
+.leg{font-size:12px;color:var(--mut);display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.badge{display:inline-block;min-width:26px;text-align:center;border-radius:5px;padding:1px 5px;color:#fff;font-weight:600;font-size:13px}
+h2{font-size:16px;margin:0 0 8px}
+textarea{width:100%;min-height:90px;box-sizing:border-box;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:8px;font:13px monospace}
+.log div{padding:3px 0;border-bottom:1px solid var(--bd);font-size:13px}
+.mut{color:var(--mut)}
+</style></head><body><main>
+<h1>⚽ Английская футбольная пирамида</h1>
+<p class="sub">Премьер-лига · Чемпионшип · Лига 1 · Лига 2 — с повышением/вылетом и составами. <span id="season"></span></p>
+<div class="bar">
+<button class="pri" id="sim">▶ Сыграть сезон</button>
+<button id="next" disabled>⏭ Новый сезон (повышения/вылеты)</button>
+</div>
+<div class="tabs" id="tabs"></div>
+<div class="card"><div class="sc"><table id="tbl"></table></div>
+<div class="leg"><span>🟩 повышение</span><span>🟨 плей-офф</span><span>🟥 вылет</span><span>Нажмите на клуб — состав</span></div></div>
+<div class="card" id="squad" hidden></div>
+<div class="card"><h2>История сезонов</h2><div class="log" id="log"><span class="mut">Пока пусто</span></div></div>
+<div class="card"><h2>Импорт рейтингов FC 27</h2>
+<p class="sub">Составы сейчас сгенерированы как заглушки: у меня нет базы реальных рейтингов FC 27. Вставьте свои данные, по строке на игрока: <code>Клуб;Имя;Поз;Рейтинг</code> (поз: GK, DEF, MID, ATT). Клубы, которые есть в данных, получат ваш состав.</p>
+<textarea id="imp" placeholder="Arsenal;Bukayo Saka;ATT;88"></textarea>
+<div class="bar" style="margin-top:8px"><button id="impb">Загрузить</button><span id="impm" class="mut"></span></div></div>
+</main>
+<script>
+const NAMES=[
+["Arsenal","Aston Villa","Bournemouth","Brentford","Brighton","Burnley","Chelsea","Crystal Palace","Everton","Fulham","Leeds United","Liverpool","Manchester City","Manchester United","Newcastle United","Nottingham Forest","Sunderland","Tottenham","West Ham","Wolverhampton"],
+["Birmingham City","Blackburn Rovers","Bristol City","Charlton Athletic","Coventry City","Derby County","Hull City","Ipswich Town","Leicester City","Middlesbrough","Millwall","Norwich City","Oxford United","Portsmouth","Preston North End","QPR","Sheffield United","Sheffield Wednesday","Southampton","Stoke City","Swansea City","Watford","West Bromwich Albion","Wrexham"],
+["Barnsley","Blackpool","Bolton Wanderers","Bradford City","Burton Albion","Cardiff City","Doncaster Rovers","Exeter City","Huddersfield Town","Leyton Orient","Lincoln City","Luton Town","Mansfield Town","Northampton Town","Peterborough United","Plymouth Argyle","Port Vale","Reading","Rotherham United","Stevenage","Stockport County","Wigan Athletic","Wycombe Wanderers","AFC Wimbledon"],
+["Accrington Stanley","Barnet","Barrow","Bristol Rovers","Bromley","Cambridge United","Cheltenham Town","Chesterfield","Colchester United","Crawley Town","Crewe Alexandra","Fleetwood Town","Gillingham","Grimsby Town","Harrogate Town","Milton Keynes Dons","Newport County","Notts County","Oldham Athletic","Salford City","Shrewsbury Town","Swindon Town","Tranmere Rovers","Walsall"]];
+const DIV=["Премьер-лига","Чемпионшип","Лига 1","Лига 2"];
+const BASE=[74,64,58,53], POS=["GK","GK","DEF","DEF","DEF","DEF","DEF","DEF","DEF","MID","MID","MID","MID","MID","MID","ATT","ATT","ATT","ATT","ATT"];
+const PC={GK:"#b45309",DEF:"#2563eb",MID:"#059669",ATT:"#dc2626"};
+const R=(a,b)=>a+Math.random()*(b-a);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+let teams=[],season=1,cur=0,played=false,hist=[];
+function mkSquad(t){const off=R(-5,5);return POS.map((p,i)=>({n:"Игрок "+(i+1),p,o:Math.round(clamp(BASE[t.tier]+off+R(-8,8),40,92))})).sort((a,b)=>b.o-a.o)}
+function rate(t){return t.squad.slice(0,14).reduce((s,x)=>s+x.o,0)/14}
+NAMES.forEach((l,tier)=>l.forEach(n=>{const t={name:n,tier};t.squad=mkSquad(t);teams.push(t)}));
+const pois=l=>{let L=Math.exp(-l),k=0,p=1;do{k++;p*=Math.random()}while(p>L);return k-1};
+function play(a,b){const d=rate(a)-rate(b);return[pois(1.4*Math.exp((d+3)/22)),pois(1.1*Math.exp((-d-3)/22))]}
+function resetT(){teams.forEach(t=>Object.assign(t,{P:0,W:0,D:0,L:0,GF:0,GA:0,Pts:0}))}
+function addRes(a,b,g){const[x,y]=g;a.P++;b.P++;a.GF+=x;a.GA+=y;b.GF+=y;b.GA+=x;
+if(x>y){a.W++;b.L++;a.Pts+=3}else if(x<y){b.W++;a.L++;b.Pts+=3}else{a.D++;b.D++;a.Pts++;b.Pts++}}
+const inTier=i=>teams.filter(t=>t.tier===i);
+const sorted=i=>inTier(i).sort((a,b)=>b.Pts-a.Pts||(b.GF-b.GA)-(a.GF-a.GA)||b.GF-a.GF||Math.random()-.5);
+const Z=[{up:0,po:[0,0],dn:3},{up:2,po:[2,6],dn:3},{up:2,po:[2,6],dn:4},{up:3,po:[3,7],dn:0}];
+function sim(){if(played)return;resetT();
+for(let i=0;i<4;i++){const T=inTier(i);for(const a of T)for(const b of T)if(a!==b)addRes(a,b,play(a,b))}
+played=true;document.getElementById("sim").disabled=true;document.getElementById("next").disabled=false;render()}
+function po(order,from,to){let s=order.slice(from,to);const m=(a,b)=>{const g=play(a,b),h=play(b,a);const A=g[0]+h[1]+Math.random()*.1,B=g[1]+h[0];return A>=B?a:b};
+const w1=m(s[0],s[3]),w2=m(s[1],s[2]);const[x,y]=play(w1,w2);return x>y?w1:y>x?w2:(rate(w1)+R(-5,5)>rate(w2)?w1:w2)}
+function nextSeason(){const ord=[0,1,2,3].map(sorted);const up=[[],[],[],[]],dn=[[],[],[],[]];const log=[];
+for(let i=1;i<4;i++){const z=Z[i],o=ord[i];const auto=o.slice(0,z.up);const w=po(o,z.po[0]+0,z.po[1]+(i===3?0:0));
+const pw=i===3?po(o,3,7):po(o,2,6);up[i]=[...auto,pw]}
+for(let i=0;i<3;i++)dn[i]=ord[i].slice(-Z[i].dn);
+hist.unshift({s:season,ch:ord[0][0].name,c2:ord[1][0].name,c3:ord[2][0].name,c4:ord[3][0].name,up:[1,2,3].map(i=>up[i].map(t=>t.name)),dn:[0,1,2].map(i=>dn[i].map(t=>t.name))});
+for(let i=1;i<4;i++)up[i].forEach(t=>t.tier=i-1);
+for(let i=0;i<3;i++)dn[i].forEach(t=>t.tier=i+1);
+teams.forEach(t=>t.squad.forEach(x=>{x.o=clamp(x.o+Math.round(R(-2,2)),40,95)}));
+teams.forEach(t=>t.squad.sort((a,b)=>b.o-a.o));
+season++;played=false;resetT();document.getElementById("sim").disabled=false;document.getElementById("next").disabled=true;
+document.getElementById("squad").hidden=true;render()}
+function ovrCol(o){return o>=80?"#15803d":o>=70?"#65a30d":o>=60?"#ca8a04":o>=50?"#ea580c":"#6b7280"}
+function showSquad(t){const c=document.getElementById("squad");c.hidden=false;
+c.innerHTML=`<h2>${t.name} <span class="mut">· ${DIV[t.tier]} · общий рейтинг ${rate(t).toFixed(1)}</span></h2><div class="sc"><table><tr><th>Поз</th><th>Игрок</th><th>OVR</th></tr>${[...t.squad].sort((a,b)=>["GK","DEF","MID","ATT"].indexOf(a.p)-["GK","DEF","MID","ATT"].indexOf(b.p)||b.o-a.o).map(x=>`<tr><td><span class="badge" style="background:${PC[x.p]}">${x.p}</span></td><td>${x.n}</td><td><span class="badge" style="background:${ovrCol(x.o)}">${x.o}</span></td></tr>`).join("")}</table></div>`;
+c.scrollIntoView({behavior:"smooth",block:"nearest"})}
+function render(){document.getElementById("season").textContent="Сезон "+season;
+const tabs=document.getElementById("tabs");tabs.innerHTML="";
+DIV.forEach((d,i)=>{const b=document.createElement("button");b.textContent=d;if(i===cur)b.className="on";b.onclick=()=>{cur=i;render()};tabs.appendChild(b)});
+const o=played?sorted(cur):inTier(cur).sort((a,b)=>rate(b)-rate(a));const z=Z[cur];const n=o.length;
+let h=`<tr><th>#</th><th>Клуб</th><th>${played?"И":"Рейт"}</th>${played?"<th>В</th><th>Н</th><th>П</th><th>РМ</th><th>О</th>":""}</tr>`;
+o.forEach((t,i)=>{let c="";if(played){if(i<z.up)c="up";else if(z.po[1]&&i>=z.po[0]&&i<z.po[1])c="po";else if(z.dn&&i>=n-z.dn)c="dn"}
+h+=`<tr class="cl ${c}" data-i="${teams.indexOf(t)}"><td>${i+1}</td><td>${t.name}</td>${played?`<td>${t.P}</td><td>${t.W}</td><td>${t.D}</td><td>${t.L}</td><td>${t.GF-t.GA}</td><td><b>${t.Pts}</b></td>`:`<td>${rate(t).toFixed(1)}</td>`}</tr>`});
+const tb=document.getElementById("tbl");tb.innerHTML=h;
+tb.querySelectorAll("tr.cl").forEach(r=>r.onclick=()=>showSquad(teams[+r.dataset.i]));
+const lg=document.getElementById("log");
+if(hist.length)lg.innerHTML=hist.map(s=>`<div><b>Сезон ${s.s}:</b> 🏆 ${s.ch}; Чемпионшип — ${s.c2}; Л1 — ${s.c3}; Л2 — ${s.c4}<br><span class="mut">↑ в АПЛ: ${s.up[0].join(", ")} · ↑ в Чемпионшип: ${s.up[1].join(", ")} · ↑ в Л1: ${s.up[2].join(", ")}<br>↓ из АПЛ: ${s.dn[0].join(", ")} · ↓ из Чемпионшипа: ${s.dn[1].join(", ")} · ↓ из Л1: ${s.dn[2].join(", ")}</span></div>`).join("")}
+document.getElementById("sim").onclick=sim;
+document.getElementById("next").onclick=nextSeason;
+document.getElementById("impb").onclick=()=>{const by={};let k=0;
+document.getElementById("imp").value.split("\n").forEach(l=>{const p=l.split(";").map(s=>s.trim());if(p.length<4)return;const o=parseInt(p[3]);const pos=p[2].toUpperCase();if(!o||!PC[pos])return;(by[p[0].toLowerCase()]=by[p[0].toLowerCase()]||[]).push({n:p[1],p:pos,o});k++});
+let c=0;teams.forEach(t=>{const s=by[t.name.toLowerCase()];if(s&&s.length>=11){t.squad=s.sort((a,b)=>b.o-a.o);c++}});
+document.getElementById("impm").textContent=`Загружено игроков: ${k}, клубов обновлено: ${c} (нужно ≥11 игроков на клуб)`;render()};
+resetT();render();
+try{const tg=window.Telegram&&Telegram.WebApp;if(tg){tg.ready();tg.expand()}}catch(e){}
+</script></body></html>
